@@ -74,8 +74,8 @@ extern "C"
 #define SAFETY_DOOR_BIT 8
 #define SAFETY_DOOR_PORT B
 // Setup probe pin
-#define PROBE_BIT 9
-#define PROBE_PORT B
+// #define PROBE_BIT 9
+// #define PROBE_PORT B
 
 // Enable controls switch interrupt
 #define ESTOP_ISR
@@ -149,6 +149,21 @@ extern "C"
 	// #define DIN7_PORT A
 	// #define DIN7_ISR
 	// #define DIN7_PULLUP
+
+	// #define SPI_CLK_PORT A
+	// #define SPI_CLK_BIT 5
+	// #define SPI_SDI_PORT A
+	// #define SPI_SDI_BIT 6
+	// #define SPI_SDO_PORT A
+	// #define SPI_SDO_BIT 7
+
+	// #define SPI2_CLK_PORT B
+	// #define SPI2_CLK_BIT 13
+	// #define SPI2_SDI_PORT B
+	// #define SPI2_SDI_BIT 14
+	// #define SPI2_SDO_PORT B
+	// #define SPI2_SDO_BIT 15
+	// #define SPI2_PORT 2
 
 #define ONESHOT_TIMER 1
 
