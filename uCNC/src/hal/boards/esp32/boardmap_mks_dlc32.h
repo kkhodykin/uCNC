@@ -47,15 +47,14 @@ extern "C"
 #define PWM0_CHANNEL 0
 #define PWM0_TIMER 0
 
-// configure the 74HC595 modules
-#define DOUT8_BIT 21
-#define DOUT9_BIT 16
-#define DOUT10_BIT 17
-
 	// bitbanging 74hc595 (not used)
 	// uses 3 x 74HS595
 	// #define IC74HC595_COUNT 1
 	// #define IC74HC595_DELAY_CYCLES 0
+	// configure the 74HC595 modules
+	// #define DOUT8_BIT 21
+	// #define DOUT9_BIT 16
+	// #define DOUT10_BIT 17
 
 #define IC74HC595_CUSTOM_SHIFT_IO // Enables custom MCU data shift transmission. In ESP32 that is via I2S
 #define IC74HC595_I2S_WS 17
@@ -81,10 +80,17 @@ extern "C"
 
 #define ONESHOT_TIMER 2
 
+// SPI - SD card
 #define SPI_CLK_BIT 14
 #define SPI_SDO_BIT 13
 #define SPI_SDI_BIT 12
 #define SPI_CS_BIT 15
+
+// SPI2 - displays
+#define SPI2_CLK_BIT 18
+#define SPI2_SDO_BIT 23
+#define SPI2_SDI_BIT 19
+#define SPI2_CS_BIT 5
 
 // software I2C
 #define DIN30_BIT 4

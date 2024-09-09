@@ -78,6 +78,11 @@ extern "C"
 #include "avr/boardmap_mks_gen_l_v1.h"
 #endif
 
+#if (BOARD == BOARD_MELZI_V114)
+#define MCU MCU_AVR
+#include "avr/boardmap_melzi_v114.h"
+#endif
+
 #if (BOARD == BOARD_BLUEPILL)
 #ifndef MCU
 #define MCU MCU_STM32F1X
@@ -107,6 +112,11 @@ extern "C"
 #if (BOARD == BOARD_MKS_ROBIN_NANO_V1_2)
 #define MCU MCU_STM32F1X
 #include "stm32/boardmap_mks_robin_nano_v1_2.h"
+#endif
+
+#if (BOARD == BOARD_MKS_ROBIN_NANO_V3_1)
+#define MCU MCU_STM32F4X
+#include "stm32/boardmap_mks_robin_nano_v3_1.h"
 #endif
 
 #if (BOARD == BOARD_SKR_PRO_V1_2)
@@ -185,6 +195,7 @@ extern "C"
 #endif
 
 #include "../../../boardmap_overrides.h"
+#include "pin_mapping_helper.h"
 #include "../mcus/mcudefs.h" //configures the MCU for the selected board
 
 #ifdef __cplusplus
