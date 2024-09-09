@@ -18,14 +18,14 @@ void w5XXX_critical_section_exit(void)
 
 void w5XXX_cs_select(void)
 {
-	io_clear_output(WIZNET_CS);
+	io_set_pinvalue(WIZNET_CS, 0);
 	softspi_start(WIZNET_SPI);
 }
 
 void w5XXX_cs_deselect(void)
 {
 	softspi_stop(WIZNET_SPI);
-	io_set_output(WIZNET_CS);
+	io_set_pinvalue(WIZNET_CS, 1);
 }
 
 uint8_t w5XXX_getc(void)

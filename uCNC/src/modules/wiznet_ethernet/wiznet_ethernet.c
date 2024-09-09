@@ -20,6 +20,7 @@
 #include "Ethernet/wizchip_conf.h"
 #include "Internet/DHCP/wizchip_dhcp.h"
 #include "Ethernet/wizchip_socket.h"
+#include "mongoose.h"
 
 #ifndef TELNET_PORT
 #define TELNET_PORT 23
@@ -310,12 +311,65 @@ bool eth_loop(void *arg)
 CREATE_EVENT_LISTENER(cnc_alarm, eth_loop);
 CREATE_EVENT_LISTENER(cnc_dotasks, eth_loop);
 
+/**
+ * use µCNC internal timer on mongoose
+ */
+uint64_t mg_millis(void) { return (uint64_t)mcu_millis(); }
+/**
+ * provide debug output for mongoose
+ */
+void mg_ucnc_output(char ch, void *data){
+	serial_putc(ch);
+}
+
+struct mg_mgr mgr; // Mongoose event manager
+
+void telnet_fn(struct mg_connection *c, int ev, void *ev_data)
+{
+	switch (ev)
+	{
+	case MG_EV_ERROR:
+		serial_print_str("error\n");
+		break; // Error                        char *error_message
+	case MG_EV_OPEN:
+		serial_print_str("open\n");
+		break; // Connection created           NULL
+	case MG_EV_POLL:
+		serial_print_str("pool\n");
+		break; // mg_mgr_poll iteration        uint64_t *uptime_millis
+	case MG_EV_RESOLVE:
+		serial_print_str("resolve\n");
+		break; // Host name is resolved        NULL
+	case MG_EV_CONNECT:
+		serial_print_str("connect\n");
+		break; // Connection established       NULL
+	case MG_EV_ACCEPT:
+		serial_print_str("accept\n");
+		break; // Connection accepted          NULL
+	case MG_EV_TLS_HS:
+		serial_print_str("tls\n");
+		break; // TLS handshake succeeded      NULL
+	case MG_EV_READ:
+		serial_print_str("read\n");
+		break; // Data received from socket    long *bytes_read
+	case MG_EV_WRITE:
+		serial_print_str("write\n");
+		break; // Data written to socket       long *bytes_written
+	case MG_EV_CLOSE:
+		serial_print_str("close\n");
+		break;
+	default:
+		serial_print_int(ev);
+		serial_print_str(" other\n");
+		break;
+	}
+}
+
 DECL_MODULE(wiznet_ethernet)
 {
-
-	io_config_output(WIZNET_CS);
-	io_set_output(WIZNET_CS);
-	softspi_config(WIZNET_SPI, 0, 14000000UL);
+	io_set_pinvalue(WIZNET_CS, 1);
+	spi_config_t config = {0};
+	softspi_config(WIZNET_SPI, config, 14000000UL);
 
 	wiznet_init();
 
@@ -335,6 +389,12 @@ DECL_MODULE(wiznet_ethernet)
 // ADD_EVENT_LISTENER(websocket_client_connected, web_pendant_ws_connected);
 // ADD_EVENT_LISTENER(websocket_client_disconnected, web_pendant_ws_disconnected);
 // ADD_EVENT_LISTENER(websocket_client_receive, web_pendant_ws_receive);
+
+//mongoose
+	mg_log_set_fn(mg_ucnc_output, NULL);
+	mg_mgr_init(&mgr);
+
+	mg_listen(&mgr, "tcp://0.0.0.0:23", &telnet_fn, NULL);
 
 // serial_stream_register(&web_pendant_stream);
 #ifdef ENABLE_MAIN_LOOP_MODULES
