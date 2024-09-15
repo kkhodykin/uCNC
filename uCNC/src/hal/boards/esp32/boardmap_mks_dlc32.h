@@ -24,6 +24,10 @@ extern "C"
 {
 #endif
 
+#ifndef MCU
+#define MCU MCU_ESP32
+#endif
+
 #ifndef BOARD_NAME
 #define BOARD_NAME "MKS DLC32"
 #endif
@@ -91,18 +95,6 @@ extern "C"
 #define SPI2_SDO_BIT 23
 #define SPI2_SDI_BIT 19
 #define SPI2_CS_BIT 5
-
-// software I2C
-#define DIN30_BIT 4
-#define DIN31_BIT 0
-
-// pins for smart adapter
-// clk
-#define DOUT4_BIT 26
-// data
-#define DOUT5_BIT 05
-// cs
-#define DOUT6_BIT 27
 
 #ifdef __cplusplus
 }
