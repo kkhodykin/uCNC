@@ -24,6 +24,10 @@ extern "C"
 {
 #endif
 
+#ifndef MCU
+#define MCU MCU_STM32F4X
+#endif
+
 #ifndef BOARD_NAME
 #define BOARD_NAME "MKS Robin Nano 3.1"
 #endif
@@ -166,6 +170,12 @@ extern "C"
 #define SPI2_SDI_BIT 6
 #define SPI2_SDI_PORT A
 #define SPI2_PORT 1
+
+#define I2C_CLK_BIT 6
+#define I2C_CLK_PORT B
+#define I2C_DATA_BIT 7
+#define I2C_DATA_PORT B
+#define I2C_PORT 1
 
 #define ONESHOT_TIMER 8
 
