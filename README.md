@@ -11,14 +11,12 @@
 To configure µCNC to fit your hardware you can use [µCNC config builder web tool](https://paciente8159.github.io/uCNC-config-builder/) to generate the config override files.
 Although most of the options are configurable via the web tool, some options might be missing and you might need to add them manually (regarding tools or addon modules mostly).
 
-# VERSION 1.9+ NOTES
+# VERSION 1.10+ NOTES
 
-Version 1.9 introduced several breaking changes from the previous version. These are:
-  - new File System C wrapper module with System Menu and Enpoint integration.
-  - new generic and customizable ring buffer used in communications
-	- new RP2040 multicore mode (still experimental)
+Version 1.10 introduces breaking changes from the previous version. These are:
+  - new SPI bulk transfer (used by some modules like SD card)
 
-As with version 1.8 µCNC is becomming too large for Atmega328P (still supports it, but barelly fits). For that reason and to keep giving support for this MCU a branch of version 1.7 will be maintained with all the latest bugfixes and patches.
+Also a huge thank you note to [@patryk3211](https://github.com/patryk3211), for is contributions and development, of DMA and ISR driven SPI bulk transactions in several architectures.
 
 # IMPORTANT NOTE
 
@@ -59,7 +57,12 @@ You can also reach me at µCNC discord channel
 
 ## Current µCNC status
 
-µCNC current major version is v1.9. You can check all the new features, changes and bug fixes in the [CHANGELOG](https://github.com/Paciente8159/uCNC/blob/master/CHANGELOG.md).
+µCNC current major version is v1.10. You can check all the new features, changes and bug fixes in the [CHANGELOG](https://github.com/Paciente8159/uCNC/blob/master/CHANGELOG.md).
+
+Version 1.10 added the following new major features.
+- added support SPI bulk transfers. This improves SPI transmission speeds while keeping the whole firmware responsive, opening the door for new modules and upgrades to µCNC using SPI driven hardware like TFT displays.
+- increased general purpose IO pins from 32 outputs/32 inputs to 50 outputs/50 inputs
+- added support for a second SPI port
 
 Version 1.9 added the following new major features.
 
@@ -212,8 +215,8 @@ TODO List of G-Codes in µCNC future releases:
   - 1 door open switch (interrupt driven)
   - 16 pwm outputs
   - 16 analog inputs
-  - 32* generic digital inputs
-  - 32* generic digital outputs
+  - 50* generic digital inputs
+  - 50* generic digital outputs
   - 6 servo control outputs (50Hz-PPM)
 
 * see notes
@@ -224,8 +227,8 @@ NOTES:
 
 - _6 steppers + 2 extra that can be configured to mirror 2 of the other 6 for dual drive axis_
 - _6 limit switch (one per axis) plus 3 optional second axis X, Y or Z support dual endstops_
-- _Generic inputs support interrupts on the first 8 pins. Prior to version 1.4 the number of generic inputs was limited to 16._
-- _Prior to version 1.4 the number of generic outputs was limited to 16._
+- _Generic inputs support interrupts on the first 8 pins. Prior to version 1.4 the number of generic inputs was limited to 16. Prior to version 1.10 the number of generic inputs was limited to 32._
+- _Prior to version 1.4 the number of generic outputs was limited to 16. Prior to version 1.8 the number of generic outputs was limited to 32._
 
 µCNC with a configuration similar to Grbl is be able to keep up to 30KHz step rate for a 3 axis machine on an Arduino Uno at 16Mhz. (the stated rate depends on the length of the segments too, since many short length segments don't allow full speed to be achieved). For this specific type of use (like in laser engraving) a 16-bit version of stepping algorithm is possible pushing the theoretical step rate limit to 40KHz on a single UNO board.
 

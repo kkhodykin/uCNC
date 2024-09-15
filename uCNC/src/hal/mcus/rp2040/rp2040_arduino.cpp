@@ -1342,7 +1342,7 @@ extern "C"
 #include <SPI.h>
 extern "C"
 {
-	void mcu_spi_config(uint8_t mode, uint32_t frequency)
+	void mcu_spi_config(spi_config_t config, uint32_t frequency)
 	{
 		COM_SPI.end();
 		COM_SPI.setRX(SPI_SDI_BIT);
@@ -1357,14 +1357,59 @@ extern "C"
 		return COM_SPI.transfer(data);
 	}
 
-	void mcu_spi_start(uint8_t mode, uint32_t frequency)
+	void mcu_spi_start(spi_config_t config, uint32_t frequency)
 	{
-		COM_SPI.beginTransaction(SPISettings(frequency, 1 /*MSBFIRST*/, mode));
+		COM_SPI.beginTransaction(SPISettings(frequency, MSBFIRST, config.mode));
 	}
 
 	void mcu_spi_stop(void)
 	{
-		COM_SPI.endTransation();
+		COM_SPI.endTransaction();
+	}
+
+	bool mcu_spi_bulk_transfer(const uint8_t *out, uint8_t *in, uint16_t len)
+	{
+		COM_SPI.transfer((const void*)out, (void*)in, len);
+		return false;
+	}
+}
+
+#endif
+
+
+#ifdef MCU_HAS_SPI2
+#include <SPI.h>
+extern "C"
+{
+	void mcu_spi2_config(spi_config_t config, uint32_t frequency)
+	{
+		COM_SPI2.end();
+		COM_SPI2.setRX(SPI2_SDI_BIT);
+		COM_SPI2.setTX(SPI2_SDO_BIT);
+		COM_SPI2.setSCK(SPI2_CLK_BIT);
+		COM_SPI2.setCS(SPI2_CS_BIT);
+		COM_SPI2.begin();
+	}
+
+	uint8_t mcu_spi2_xmit(uint8_t data)
+	{
+		return COM_SPI2.transfer(data);
+	}
+
+	void mcu_spi2_start(spi_config_t config, uint32_t frequency)
+	{
+		COM_SPI2.beginTransaction(SPISettings(frequency, MSBFIRST, config.mode));
+	}
+
+	void mcu_spi2_stop(void)
+	{
+		COM_SPI2.endTransaction();
+	}
+
+	bool mcu_spi2_bulk_transfer(const uint8_t *out, uint8_t *in, uint16_t len)
+	{
+		COM_SPI2.transfer((const void*)out, (void*)in, len);
+		return false;
 	}
 }
 

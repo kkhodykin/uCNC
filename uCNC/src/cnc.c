@@ -212,6 +212,9 @@ uint8_t cnc_parse_cmd(void)
 #endif
 			break;
 		}
+		// runs any rt command in queue
+		// this catches for example a ?\n situation sent by some GUI like UGS
+		cnc_exec_rt_commands();
 		if (!error)
 		{
 			protocol_send_ok();
@@ -1063,6 +1066,26 @@ static void cnc_io_dotasks(void)
 
 #ifdef ENABLE_MAIN_LOOP_MODULES
 	EVENT_INVOKE(cnc_io_dotasks, NULL);
+#endif
+
+#ifdef ENABLE_STEPPERS_DISABLE_TIMEOUT
+	static uint32_t stepper_timeout = 0;
+
+	if (g_settings.step_disable_timeout)
+	{
+		// is idle check the timeout
+		if (cnc_get_exec_state(EXEC_RUN | EXEC_HOLD) == EXEC_IDLE)
+		{
+			if (stepper_timeout < mcu_millis())
+			{
+				io_enable_steppers(~g_settings.step_enable_invert); // disables steppers after idle timeout
+				stepper_timeout = UINT32_MAX;
+			}
+		}
+		else{
+			stepper_timeout = mcu_millis() + g_settings.step_disable_timeout;
+		}
+	}
 #endif
 }
 

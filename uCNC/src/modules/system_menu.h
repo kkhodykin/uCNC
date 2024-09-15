@@ -64,10 +64,25 @@ extern "C"
 #define SYSTEM_MENU_MODE_REDRAW 1
 #define SYSTEM_MENU_MODE_NONE 0
 
+// System menu IDs
+#define SYSTEM_MENU_ID_STARTUP 255
+#define SYSTEM_MENU_ID_IDLE 0
+#define SYSTEM_MENU_ID_MAIN_MENU 1
+#define SYSTEM_MENU_ID_SETTINGS 2
+#define SYSTEM_MENU_ID_JOG 7
+#define SYSTEM_MENU_ID_OVERRIDES 8
+
 #define SYSTEM_MENU_ACTION_NONE 0
 #define SYSTEM_MENU_ACTION_SELECT 1
 #define SYSTEM_MENU_ACTION_NEXT 2
 #define SYSTEM_MENU_ACTION_PREV 3
+
+// Characters given to this macro should be in range of printable ASCII characters (32-127)
+#define SYSTEM_MENU_ACTION_CHAR_INPUT(c) (c)
+// Action ID range from 128 - 137
+#define SYSTEM_MENU_ACTION_SIDE_BUTTON(b) ((b) + 128)
+// Action ID range from 138 - 147
+#define SYSTEM_MENU_ACTION_SPECIAL_BUTTON(b) ((b) + 138)
 
 #define VAR_TYPE_BOOLEAN 1
 #define VAR_TYPE_UINT8 2
@@ -162,6 +177,9 @@ extern "C"
 
 	extern system_menu_t g_system_menu;
 
+	extern float g_system_menu_jog_distance;
+	extern float g_system_menu_jog_feed;
+
 	DECL_MODULE(system_menu);
 	void system_menu_reset(void);
 	void system_menu_go_idle(void);
@@ -169,6 +187,10 @@ extern "C"
 	void system_menu_render(void);
 	void system_menu_show_modal_popup(uint32_t timeout, const char *__s);
 	void system_menu_action_timeout(uint32_t delay);
+	void system_menu_goto(uint8_t id);
+
+	void system_menu_set_render_callback(uint8_t menu_id, system_menu_page_render_cb callback);
+	void system_menu_set_action_callback(uint8_t menu_id, system_menu_page_action_cb callback);
 
 	void system_menu_append(system_menu_page_t *newpage);
 	void system_menu_append_item(uint8_t menu_id, system_menu_index_t *newitem);
@@ -190,6 +212,12 @@ extern "C"
 	void system_menu_render_modal_popup(const char *__s);
 	// this needs to be implemented using a serial stream
 	uint8_t system_menu_send_cmd(const char *__s);
+
+	/**
+	 * Overridable system menu actions to be implemented for the user input system
+	 * **/
+
+	void system_menu_action_custom_code(uint8_t action);
 
 	/**
 	 * Helper µCNC action callbacks

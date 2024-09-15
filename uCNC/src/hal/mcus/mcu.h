@@ -494,13 +494,39 @@ extern "C"
 	 * */
 	void mcu_eeprom_flush(void);
 
+	typedef union
+	{
+		uint8_t flags;
+		struct
+		{
+			uint8_t mode : 3;
+			uint8_t : 1; // reserved for bit order
+			uint8_t enable_dma : 1;
+			uint8_t : 3; // reserved
+		};
+	} spi_config_t;
+
+	// hardware port function calls
+	typedef struct spi_port_
+	{
+		bool isbusy;
+		void (*start)(spi_config_t, uint32_t);
+		uint8_t (*xmit)(uint8_t);
+		bool (*bulk_xmit)(const uint8_t *, uint8_t *, uint16_t);
+		void (*stop)(void);
+	} spi_port_t;
+
 #ifdef MCU_HAS_SPI
 #ifndef mcu_spi_xmit
 	uint8_t mcu_spi_xmit(uint8_t data);
 #endif
 
+#ifndef mcu_spi_bulk_transfer
+	bool mcu_spi_bulk_transfer(const uint8_t *out, uint8_t *in, uint16_t len);
+#endif
+
 #ifndef mcu_spi_start
-	void mcu_spi_start(uint8_t mode, uint32_t frequency);
+	void mcu_spi_start(spi_config_t config, uint32_t frequency);
 #endif
 
 #ifndef mcu_spi_stop
@@ -508,8 +534,40 @@ extern "C"
 #endif
 
 #ifndef mcu_spi_config
-	void mcu_spi_config(uint8_t mode, uint32_t frequency);
+	void mcu_spi_config(spi_config_t config, uint32_t frequency);
 #endif
+
+extern spi_port_t mcu_spi_port;
+#define MCU_SPI (&mcu_spi_port)
+#else
+#define MCU_SPI NULL
+#endif
+
+#ifdef MCU_HAS_SPI2
+#ifndef mcu_spi2_xmit
+	uint8_t mcu_spi2_xmit(uint8_t data);
+#endif
+
+#ifndef mcu_spi2_bulk_transfer
+	bool mcu_spi2_bulk_transfer(const uint8_t *out, uint8_t *in, uint16_t len);
+#endif
+
+#ifndef mcu_spi2_start
+	void mcu_spi2_start(spi_config_t config, uint32_t frequency);
+#endif
+
+#ifndef mcu_spi2_stop
+	void mcu_spi2_stop(void);
+#endif
+
+#ifndef mcu_spi2_config
+	void mcu_spi2_config(spi_config_t config, uint32_t frequency);
+#endif
+
+extern spi_port_t mcu_spi2_port;
+#define MCU_SPI2 (&mcu_spi2_port)
+#else
+#define MCU_SPI2 NULL
 #endif
 
 #ifdef MCU_HAS_I2C
