@@ -38,10 +38,6 @@
 #define WEBSOCKET_PORT 8080
 #endif
 
-#ifndef WEBSOCKET_MAX_CLIENTS
-#define WEBSOCKET_MAX_CLIENTS 2
-#endif
-
 #ifdef WIZNET_HW_SPI
 #define WIZNET_SPI MCU_SPI
 #endif
@@ -69,8 +65,6 @@ typedef struct client_socket_
 {
 	uint8_t socket;
 	uint16_t port;
-	ring_buffer_t *rx_buffer;
-	ring_buffer_t *tx_buffer;
 } client_socket_t;
 
 /**
@@ -178,7 +172,7 @@ static void socket_server_run(client_socket_t *client)
 		if ((ret = getSn_RX_RSR(client->socket)) > 0)
 		{
 			// check available space to read data
-			avail = BUFFER_WRITE_AVAILABLE((client->rx_buffer));
+			avail = BUFFER_WRITE_AVAILABLE(eth_rx);
 			if (avail)
 			{
 				uint8_t buffer[avail];
@@ -376,8 +370,6 @@ DECL_MODULE(wiznet_ethernet)
 	// setup telnet client
 	telnet_client.socket = TELNET_SOCKET_N;
 	telnet_client.port = TELNET_PORT;
-	telnet_client.rx_buffer = &eth_rx;
-	telnet_client.tx_buffer = &eth_tx;
 
 	// register the ethernt stream buffer to the main protocol
 	serial_stream_register(&eth_serial_stream);
