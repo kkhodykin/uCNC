@@ -100,8 +100,10 @@ void eth_serial_stream_flush(void)
 		int16_t avail = 0;
 		if ((avail = BUFFER_READ_AVAILABLE(eth_tx)) > 0)
 		{
+			uint8_t r = 0;
 			uint8_t buffer[avail];
-			BUFFER_READ(eth_tx, buffer, avail, avail);
+			BUFFER_READ(eth_tx, buffer, avail, r);
+			avail -= r;
 			wizchip_send(telnet_client.socket, buffer, sizeof(buffer));
 		}
 	}
@@ -176,7 +178,7 @@ static void socket_server_run(client_socket_t *client)
 		if ((ret = getSn_RX_RSR(client->socket)) > 0)
 		{
 			// check available space to read data
-			avail = BUFFER_WRITE_AVAILABLE(client->rx_buffer);
+			avail = BUFFER_WRITE_AVAILABLE((client->rx_buffer));
 			if (avail)
 			{
 				uint8_t buffer[avail];
@@ -218,6 +220,7 @@ static void socket_server_run(client_socket_t *client)
 
 static FORCEINLINE void wiznet_init(void)
 {
+	w5XXX_init();
 	reg_wizchip_cris_cbfunc(w5XXX_critical_section_enter, w5XXX_critical_section_exit);
 	reg_wizchip_cs_cbfunc(w5XXX_cs_select, w5XXX_cs_deselect);
 	reg_wizchip_spi_cbfunc(w5XXX_getc, w5XXX_putc);
@@ -367,10 +370,7 @@ void telnet_fn(struct mg_connection *c, int ev, void *ev_data)
 
 DECL_MODULE(wiznet_ethernet)
 {
-	io_set_pinvalue(WIZNET_CS, 1);
-	spi_config_t config = {0};
-	softspi_config(WIZNET_SPI, config, 14000000UL);
-
+	
 	wiznet_init();
 
 	// setup telnet client

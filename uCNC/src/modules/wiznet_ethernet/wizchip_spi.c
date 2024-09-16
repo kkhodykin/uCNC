@@ -1,10 +1,21 @@
 #include "wizchip_spi.h"
 
+#if (WIZNET_BUS == WIZNET_HW_SPI)
+HARDSPI(wiz_spi_port, 14000000UL, 0, mcu_spi_port);
+#define WIZNET_SPI (&wiz_spi_port)
+#endif
+
 /**
  * 
  * SPI callback functions
  * 
  */
+
+void w5XXX_init(void){
+	io_set_pinvalue(WIZNET_CS, 1);
+	spi_config_t config = {0};
+	softspi_config(WIZNET_SPI, config, 14000000UL);
+}
 
 void w5XXX_critical_section_enter(void)
 {

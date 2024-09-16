@@ -47,15 +47,12 @@ extern "C"
 #define WIZNET_CS DOUT28
 #endif
 
-#if (WIZNET_BUS == WIZNET_HW_SPI)
-#define WIZNET_SPI MCU_SPI
-#endif
-
 /**
  * 
  * w5XXX_spi.c
  * 
  */
+void w5XXX_init(void);
 void w5XXX_critical_section_enter(void);
 void w5XXX_critical_section_exit(void);
 void w5XXX_cs_select(void);
