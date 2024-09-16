@@ -24,6 +24,7 @@
 
 #ifndef TELNET_PORT
 #define TELNET_PORT 23
+#define TELNET_DEST "tcp://localhost:" STRGIFY(TELNET_PORT)
 #endif
 
 #ifndef TELNET_SOCKET_N
@@ -32,17 +33,19 @@
 
 #ifndef WEBSERVER_PORT
 #define WEBSERVER_PORT 80
+#define WEBSERVER_DEST "http://localhost:" STRGIFY(WEBSERVER_PORT)
 #endif
 
 #ifndef WEBSOCKET_PORT
 #define WEBSOCKET_PORT 8080
+#define WEBSOCKET_DEST "ws://localhost:" STRGIFY(WEBSOCKET_PORT)
 #endif
 
 #ifdef WIZNET_HW_SPI
 #define WIZNET_SPI MCU_SPI
 #endif
 
-#define ETH_USE_DHCP
+// #define ETH_USE_DHCP
 
 #ifndef ETH_USE_DHCP
 #define NETWORK_DHCP NETINFO_STATIC
@@ -315,7 +318,8 @@ uint64_t mg_millis(void) { return (uint64_t)mcu_millis(); }
 /**
  * provide debug output for mongoose
  */
-void mg_ucnc_output(char ch, void *data){
+void mg_ucnc_output(char ch, void *data)
+{
 	serial_putc(ch);
 }
 
@@ -362,9 +366,89 @@ void telnet_fn(struct mg_connection *c, int ev, void *ev_data)
 	}
 }
 
+void websocket_fn(struct mg_connection *c, int ev, void *ev_data, void *fn_data)
+{
+	struct mg_ws_message *wm;
+	struct mg_http_message *hm;
+
+	switch (ev)
+	{
+	case MG_EV_OPEN:
+		// c->is_hexdumping = 1;
+		break;
+	case MG_EV_HTTP_MSG:
+		hm = (struct mg_http_message *)ev_data;
+		if (mg_http_match_uri(hm, "/websocket"))
+		{
+			// Upgrade to websocket. From now on, a connection is a full-duplex
+			// Websocket connection, which will receive MG_EV_WS_MSG events.
+			mg_ws_upgrade(c, hm, NULL);
+		}
+		else if (mg_http_match_uri(hm, "/rest"))
+		{
+			// Serve REST response
+			mg_http_reply(c, 200, "", "{\"result\": %d}\n", 123);
+		}
+		else
+		{
+			// Serve static files
+			// struct mg_http_serve_opts opts = {.root_dir = s_web_root};
+			// mg_http_serve_dir(c, ev_data, &opts);
+		}
+		break;
+	case MG_EV_WS_MSG:
+		// Got websocket frame. Received data is wm->data. Echo it back!
+		wm = (struct mg_ws_message *)ev_data;
+		mg_ws_send(c, wm->data.buf, wm->data.len, WEBSOCKET_OP_TEXT);
+		break;
+	}
+	(void)fn_data;
+}
+
+void webserver_fn(struct mg_connection *c, int ev, void *ev_data)
+{
+	switch (ev)
+	{
+	case MG_EV_ERROR:
+		serial_print_str("error\n");
+		break; // Error                        char *error_message
+	case MG_EV_OPEN:
+		serial_print_str("open\n");
+		break; // Connection created           NULL
+	case MG_EV_POLL:
+		serial_print_str("pool\n");
+		break; // mg_mgr_poll iteration        uint64_t *uptime_millis
+	case MG_EV_RESOLVE:
+		serial_print_str("resolve\n");
+		break; // Host name is resolved        NULL
+	case MG_EV_CONNECT:
+		serial_print_str("connect\n");
+		break; // Connection established       NULL
+	case MG_EV_ACCEPT:
+		serial_print_str("accept\n");
+		break; // Connection accepted          NULL
+	case MG_EV_TLS_HS:
+		serial_print_str("tls\n");
+		break; // TLS handshake succeeded      NULL
+	case MG_EV_READ:
+		serial_print_str("read\n");
+		break; // Data received from socket    long *bytes_read
+	case MG_EV_WRITE:
+		serial_print_str("write\n");
+		break; // Data written to socket       long *bytes_written
+	case MG_EV_CLOSE:
+		serial_print_str("close\n");
+		break;
+	default:
+		serial_print_int(ev);
+		serial_print_str(" other\n");
+		break;
+	}
+}
+
 DECL_MODULE(wiznet_ethernet)
 {
-	
+
 	wiznet_init();
 
 	// setup telnet client
@@ -375,18 +459,23 @@ DECL_MODULE(wiznet_ethernet)
 	serial_stream_register(&eth_serial_stream);
 
 	// network_initialize(g_net_info);
-// 		// serial_stream_register(&web_pendant_stream);
-// 		endpoint_add("/", 0, &web_pendant_request, NULL);
+	// 		// serial_stream_register(&web_pendant_stream);
+	// 		endpoint_add("/", 0, &web_pendant_request, NULL);
 
-// ADD_EVENT_LISTENER(websocket_client_connected, web_pendant_ws_connected);
-// ADD_EVENT_LISTENER(websocket_client_disconnected, web_pendant_ws_disconnected);
-// ADD_EVENT_LISTENER(websocket_client_receive, web_pendant_ws_receive);
+	// ADD_EVENT_LISTENER(websocket_client_connected, web_pendant_ws_connected);
+	// ADD_EVENT_LISTENER(websocket_client_disconnected, web_pendant_ws_disconnected);
+	// ADD_EVENT_LISTENER(websocket_client_receive, web_pendant_ws_receive);
 
-//mongoose
+	// mongoose
 	mg_log_set_fn(mg_ucnc_output, NULL);
 	mg_mgr_init(&mgr);
 
-	mg_listen(&mgr, "tcp://0.0.0.0:23", &telnet_fn, NULL);
+	// telnet
+	mg_listen(&mgr, TELNET_DEST, &telnet_fn, NULL);
+	// websocket
+	mg_http_listen(&mgr, WEBSOCKET_DEST, websocket_fn, NULL);
+	// webserver
+	mg_http_listen(&mgr, WEBSERVER_DEST, webserver_fn, NULL);
 
 // serial_stream_register(&web_pendant_stream);
 #ifdef ENABLE_MAIN_LOOP_MODULES
