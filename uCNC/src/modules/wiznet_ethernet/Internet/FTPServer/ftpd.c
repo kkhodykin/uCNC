@@ -96,17 +96,17 @@ char sizefail[] = "550 File not found\r\n";
 #define ftp_ID 		"wiznet"
 #define ftp_PW 		"wiznet54321"
 
-un_l2cval remote_ip;
-uint16_t  remote_port;
-un_l2cval local_ip;
-uint16_t  local_port;
-uint8_t connect_state_control = 0;
-uint8_t connect_state_control1 = 0;
-uint8_t connect_state_data = 0;
-uint8_t connect_count = 0;
-uint32_t con_remain_cnt1 = 0;
-uint32_t con_remain_cnt2 = 0;
-uint8_t cur_sn = CTRL_SOCK;
+static un_l2cval remote_ip;
+static uint16_t  remote_port;
+static un_l2cval local_ip;
+static uint16_t  local_port;
+static uint8_t connect_state_control = 0;
+static uint8_t connect_state_control1 = 0;
+static uint8_t connect_state_data = 0;
+static uint8_t connect_count = 0;
+static uint32_t con_remain_cnt1 = 0;
+static uint32_t con_remain_cnt2 = 0;
+static uint8_t cur_sn = CTRL_SOCK;
 struct ftpd ftp;
 
 int current_year = 2014;

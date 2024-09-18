@@ -31,31 +31,12 @@ extern "C"
 #include <stdio.h>
 #include <string.h>
 
-#ifndef WIZNET_DRIVER
-#define WIZNET_DRIVER W5500
-#define _WIZCHIP_ WIZNET_DRIVER
-#endif
-
-#define WIZNET_HW_SPI 1
-#define WIZNET_SW_SPI 2
-
-#ifndef WIZNET_BUS
-#define WIZNET_BUS WIZNET_HW_SPI
-#endif
-
-#ifndef WIZNET_CS
-#define WIZNET_CS DOUT28
-#endif
-
-#if (WIZNET_BUS == WIZNET_HW_SPI)
-#define WIZNET_SPI MCU_SPI
-#endif
-
 /**
  * 
  * wiznet_spi.c
  * 
  */
+void wiznet_init(void);
 void wiznet_critical_section_enter(void);
 void wiznet_critical_section_exit(void);
 void wiznet_cs_select(void);

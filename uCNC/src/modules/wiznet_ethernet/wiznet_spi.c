@@ -1,10 +1,37 @@
 #include "wiznet_spi.h"
 
+#ifndef WIZNET_DRIVER
+#define WIZNET_DRIVER W5500
+#define _WIZCHIP_ WIZNET_DRIVER
+#endif
+
+#define WIZNET_HW_SPI 1
+#define WIZNET_SW_SPI 2
+
+#ifndef WIZNET_BUS
+#define WIZNET_BUS WIZNET_HW_SPI
+#endif
+
+#ifndef WIZNET_CS
+#define WIZNET_CS SPI_CS
+#endif
+
+#if (WIZNET_BUS == WIZNET_HW_SPI)
+HARDSPI(wiz_spi_port, 14000000UL, 0, mcu_spi_port);
+#define WIZNET_SPI &wiz_spi_port
+#endif
+
 /**
  * 
  * SPI callback functions
  * 
  */
+
+void wiznet_init(void){
+	io_set_output(WIZNET_CS);
+	spi_config_t conf = {0};
+	softspi_config(WIZNET_SPI, conf, 14000000UL);
+}
 
 void wiznet_critical_section_enter(void)
 {

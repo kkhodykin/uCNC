@@ -57,10 +57,11 @@
 static wiz_NetInfo g_net_info =
 		{
 				.mac = {0x00, 0x08, 0xDC, 0x12, 0x34, 0x56}, // MAC address
-				.ip = {192, 168, 1, 90},										 // IP address
+				/*.ip = {192, 168, 1, 90},										 // IP address
 				.sn = {255, 255, 255, 0},										 // Subnet Mask
-				.gw = {192, 168, 1, 1},											 // Gateway
+				.gw = {192, 168, 1, 1},											 // Gateway/
 				.dns = {8, 8, 8, 8},												 // DNS server
+				*/
 				.dhcp = NETWORK_DHCP												 // DHCP enable/disable
 };
 
@@ -68,8 +69,6 @@ typedef struct client_socket_
 {
 	uint8_t socket;
 	uint16_t port;
-	ring_buffer_t *rx_buffer;
-	ring_buffer_t *tx_buffer;
 } client_socket_t;
 
 /**
@@ -175,7 +174,7 @@ static void socket_server_run(client_socket_t *client)
 		if ((ret = getSn_RX_RSR(client->socket)) > 0)
 		{
 			// check available space to read data
-			avail = BUFFER_WRITE_AVAILABLE(client->rx_buffer);
+			avail = BUFFER_WRITE_AVAILABLE(eth_rx);
 			if (avail)
 			{
 				uint8_t buffer[avail];
@@ -215,8 +214,9 @@ static void socket_server_run(client_socket_t *client)
 	}
 }
 
-static FORCEINLINE void wiznet_init(void)
+static FORCEINLINE void eth_init(void)
 {
+	wiznet_init();
 	reg_wizchip_cris_cbfunc(wiznet_critical_section_enter, wiznet_critical_section_exit);
 	reg_wizchip_cs_cbfunc(wiznet_cs_select, wiznet_cs_deselect);
 	reg_wizchip_spi_cbfunc(wiznet_getc, wiznet_putc);
@@ -307,23 +307,15 @@ bool eth_loop(void *arg)
 
 	return EVENT_CONTINUE;
 }
-CREATE_EVENT_LISTENER(cnc_alarm, eth_loop);
-CREATE_EVENT_LISTENER(cnc_dotasks, eth_loop);
+CREATE_EVENT_LISTENER_WITHLOCK(cnc_io_dotasks, eth_loop, LISTENER_HWSPI_LOCK);
 
 DECL_MODULE(wiznet_ethernet)
 {
-
-	io_config_output(WIZNET_CS);
-	io_set_output(WIZNET_CS);
-	softspi_config(WIZNET_SPI, 0, 14000000UL);
-
-	wiznet_init();
+	eth_init();
 
 	// setup telnet client
 	telnet_client.socket = TELNET_SOCKET_N;
 	telnet_client.port = TELNET_PORT;
-	telnet_client.rx_buffer = &eth_rx;
-	telnet_client.tx_buffer = &eth_tx;
 
 	// register the ethernt stream buffer to the main protocol
 	serial_stream_register(&eth_serial_stream);
@@ -338,8 +330,7 @@ DECL_MODULE(wiznet_ethernet)
 
 // serial_stream_register(&web_pendant_stream);
 #ifdef ENABLE_MAIN_LOOP_MODULES
-	ADD_EVENT_LISTENER(cnc_alarm, eth_loop);
-	ADD_EVENT_LISTENER(cnc_dotasks, eth_loop);
+	ADD_EVENT_LISTENER(cnc_io_dotasks, eth_loop);
 #else
 #warning "Main loop extensions are not enabled. Ethernet will not work."
 #endif
