@@ -57,9 +57,9 @@ extern "C"
 // #define ESTOP_ISR
 
 // Setup com pins
-#define RX_BIT 1
-#define RX_PULLUP
-#define TX_BIT 0
+// #define RX_BIT 1
+// #define RX_PULLUP
+// #define TX_BIT 0
 // only uncomment this if other port other then 0 is used
 // #define UART_PORT 0
 
@@ -128,11 +128,11 @@ extern "C"
 	// #define DIR4_IO_OFFSET 14
 	// #define DOUT0_IO_OFFSET 15
 
-// #define SPI_CLK_BIT 18
-// #define SPI_SDO_BIT 19
-// #define SPI_SDI_BIT 16
-// #define SPI_CS_BIT 17
-// #define SPI_PORT 0
+#define SPI_CLK_BIT 18
+#define SPI_SDO_BIT 19
+#define SPI_SDI_BIT 16
+#define SPI_CS_BIT 17
+#define SPI_PORT 0
 
 // #define SPI2_CLK_BIT 10
 // #define SPI2_SDO_BIT 11

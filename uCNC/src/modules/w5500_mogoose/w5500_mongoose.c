@@ -25,18 +25,20 @@
 #endif
 
 #define WIZNET_HW_SPI 1
-#define WIZNET_SW_SPI 2
+#define WIZNET_HW_SPI2 2
+#define WIZNET_SW_SPI 3
 
 #ifndef WIZNET_BUS
 #define WIZNET_BUS WIZNET_HW_SPI
 #endif
 
 #ifndef WIZNET_CS
-#define WIZNET_CS DOUT28
+#define WIZNET_CS SPI_CS
 #endif
 
 #if (WIZNET_BUS == WIZNET_HW_SPI)
-#define WIZNET_SPI MCU_SPI
+HARDSPI(wiz_spi_port, 14000000UL, 0, mcu_spi_port);
+#define WIZNET_SPI &wiz_spi_port
 #endif
 
 /**
@@ -46,7 +48,8 @@ uint64_t mg_millis(void) { return (uint64_t)mcu_millis(); }
 /**
  * provide debug output for mongoose
  */
-void mg_ucnc_output(char ch, void *data){
+void mg_ucnc_output(char ch, void *data)
+{
 	serial_putc(ch);
 }
 /**
@@ -56,13 +59,13 @@ void mg_ucnc_output(char ch, void *data){
  */
 void spi_begin(void *spi)
 {
-	io_clear_output(WIZNET_CS);
+	io_set_pinvalue(WIZNET_CS, false);
 	softspi_start(WIZNET_SPI);
 }
 void spi_end(void *spi)
 {
 	softspi_stop(WIZNET_SPI);
-	io_set_output(WIZNET_CS);
+	io_set_pinvalue(WIZNET_CS, true);
 }
 
 uint8_t spi_txn(void *spi, uint8_t c)
@@ -85,7 +88,7 @@ void telnet_fn(struct mg_connection *c, int ev, void *ev_data)
 		serial_print_str("open\n");
 		break; // Connection created           NULL
 	case MG_EV_POLL:
-		serial_print_str("pool\n");
+		// serial_print_str("pool\n");
 		break; // mg_mgr_poll iteration        uint64_t *uptime_millis
 	case MG_EV_RESOLVE:
 		serial_print_str("resolve\n");
@@ -121,17 +124,25 @@ bool w5500_mongoose_update(void *params)
 	return EVENT_CONTINUE;
 }
 
-CREATE_EVENT_LISTENER(cnc_dotasks, w5500_mongoose_update);
+CREATE_EVENT_LISTENER_WITHLOCK(cnc_io_dotasks, w5500_mongoose_update, LISTENER_HWSPI_LOCK);
+
+void w5500_diagnostic(void *args)
+{
+	MG_INFO(("ethernet: %s", mg_tcpip_driver_w5500.up(&mif) ? "up" : "down"));
+	serial_print_int(mif.ip);
+	serial_flush();
+}
 
 DECL_MODULE(w5500_mongoose)
 {
-	softspi_config(WIZNET_SPI, 0, 14000000UL);
+	spi_config_t conf = {0};
+	softspi_config(WIZNET_SPI, conf, 14000000UL);
 
 	// configure SPI for w5500 via mongoose
-	spi.spi = NULL;	 // SPI data
-	spi.begin = spi_begin; // begin transation
-	spi.end = spi_end;		 // end transaction
-	spi.txn = spi_txn;		 // transmit data
+	spi.spi = &wiz_spi_port; // SPI data
+	spi.begin = spi_begin;	 // begin transation
+	spi.end = spi_end;			 // end transaction
+	spi.txn = spi_txn;			 // transmit data
 
 	// set w5500 mac
 	mif.mac[0] = 0x7e;
@@ -140,6 +151,7 @@ DECL_MODULE(w5500_mongoose)
 	mif.mac[3] = 0x0a;
 	mif.mac[4] = 0x49;
 	mif.mac[5] = 0xfb;
+	mif.enable_dhcp_client = true;
 
 	mif.driver = &mg_tcpip_driver_w5500;
 	mif.driver_data = &spi; // network interface
@@ -148,9 +160,11 @@ DECL_MODULE(w5500_mongoose)
 	mg_mgr_init(&mgr);
 	mg_tcpip_init(&mgr, &mif);
 
+	mg_timer_add(&mgr, 5000, MG_TIMER_REPEAT, w5500_diagnostic, NULL);
+
 	mg_listen(&mgr, "tcp://0.0.0.0:23", &telnet_fn, NULL);
 #if defined(ENABLE_MAIN_LOOP_MODULES)
-	ADD_EVENT_LISTENER(cnc_dotasks, w5500_mongoose_update);
+	ADD_EVENT_LISTENER(cnc_io_dotasks, w5500_mongoose_update);
 #else // !defined(ENABLE_MAIN_LOOP_MODULES)
 #error "Main loop extensions are not enabled. Speaker will not work."
 #endif // defined(ENABLE_MAIN_LOOP_MODULES)
