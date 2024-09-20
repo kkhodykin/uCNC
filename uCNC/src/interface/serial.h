@@ -80,6 +80,7 @@ extern "C"
 	void print_fltunits(print_cb cb, float num);
 	void print_intarr(print_cb cb, int32_t *arr, uint8_t count);
 	void print_fltarr(print_cb cb, float *arr, uint8_t count);
+	void print_ip4(print_cb cb, int32_t num)
 
 #define serial_print_str(__s) print_str(serial_putc, __s)
 #define serial_print_bytes(data, count) print_bytes(serial_putc, data, count)
@@ -88,6 +89,7 @@ extern "C"
 #define serial_print_fltunits(num) print_fltunits(serial_putc, num)
 #define serial_print_intarr(arr, count) print_intarr(serial_putc, arr, count)
 #define serial_print_fltarr(arr, count) print_fltarr(serial_putc, arr, count)
+#define serial_print_ip4(ip) print_ip4(serial_putc, ip)
 
 #ifdef ENABLE_DEBUG_STREAM
 #ifndef DEBUG_STREAM
@@ -104,6 +106,7 @@ extern "C"
 #define DEBUG_FLTUNITS(num) print_fltunits(debug_putc, num)
 #define DEBUG_INTARR(arr, count) print_intarr(debug_putc, arr, count)
 #define DEBUG_FLTARR(arr, count) print_fltarr(debug_putc, arr, count)
+#define DEBUG_IP4(ip) print_ip4(debug_putc, ip)
 #else
 #define DEBUG_PUTC(c)
 #define DEBUG_STR(__s)
@@ -113,6 +116,7 @@ extern "C"
 #define DEBUG_FLTUNITS(num)
 #define DEBUG_INTARR(arr, count)
 #define DEBUG_FLTARR(arr, count)
+#define DEBUG_IP4(ip)
 #endif
 
 #ifdef __cplusplus

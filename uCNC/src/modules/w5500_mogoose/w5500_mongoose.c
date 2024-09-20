@@ -73,9 +73,9 @@ uint8_t spi_txn(void *spi, uint8_t c)
 	return softspi_xmit(WIZNET_SPI, c);
 }
 
-struct mg_mgr mgr; // Mongoose event manager
-struct mg_tcpip_spi spi;
-struct mg_tcpip_if mif;
+static struct mg_mgr mgr; // Mongoose event manager
+static struct mg_tcpip_spi spi;
+static struct mg_tcpip_if mif;
 
 void telnet_fn(struct mg_connection *c, int ev, void *ev_data)
 {
@@ -129,14 +129,15 @@ CREATE_EVENT_LISTENER_WITHLOCK(cnc_io_dotasks, w5500_mongoose_update, LISTENER_H
 void w5500_diagnostic(void *args)
 {
 	MG_INFO(("ethernet: %s", mg_tcpip_driver_w5500.up(&mif) ? "up" : "down"));
-	serial_print_int(mif.ip);
+	struct mg_tcpip_if *ifp = (struct mg_tcpip_if *) mgr.priv;
+	serial_print_ip4(ifp->ip);
 	serial_flush();
 }
 
 DECL_MODULE(w5500_mongoose)
 {
 	spi_config_t conf = {0};
-	softspi_config(WIZNET_SPI, conf, 14000000UL);
+	softspi_config(WIZNET_SPI, conf, 10000000UL);
 
 	// configure SPI for w5500 via mongoose
 	spi.spi = &wiz_spi_port; // SPI data
