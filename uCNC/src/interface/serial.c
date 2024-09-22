@@ -527,14 +527,18 @@ void print_fltarr(print_cb cb, float *arr, uint8_t count)
 	}
 }
 
-void print_ip4(print_cb cb, int32_t num)
+void print_ipv4(print_cb cb, int32_t num)
 {
-	uint8_t *ip = &num;
-	print_int(cb, (uint32_t)ip[0]);
+	typedef union{
+		uint32_t ip;
+		uint8_t bytes[4];
+	} ipv4_t;
+	ipv4_t ip = { .ip = (uint32_t)num };
+	print_int(cb, (uint32_t)ip.bytes[0]);
 	cb('.');
-	print_int(cb, (uint32_t)ip[1]);
+	print_int(cb, (uint32_t)ip.bytes[1]);
 	cb('.');
-	print_int(cb, (uint32_t)ip[2]);
+	print_int(cb, (uint32_t)ip.bytes[2]);
 	cb('.');
-	print_int(cb, (uint32_t)ip[3]);
+	print_int(cb, (uint32_t)ip.bytes[3]);
 }

@@ -130,7 +130,7 @@ void w5500_diagnostic(void *args)
 {
 	MG_INFO(("ethernet: %s", mg_tcpip_driver_w5500.up(&mif) ? "up" : "down"));
 	struct mg_tcpip_if *ifp = (struct mg_tcpip_if *) mgr.priv;
-	serial_print_ip4(ifp->ip);
+	serial_print_ipv4(ifp->ip);
 	serial_flush();
 }
 
@@ -152,7 +152,10 @@ DECL_MODULE(w5500_mongoose)
 	mif.mac[3] = 0x0a;
 	mif.mac[4] = 0x49;
 	mif.mac[5] = 0xfb;
-	mif.enable_dhcp_client = true;
+	// mif.enable_dhcp_client = true;
+	mif.gw = 0xfe01a8c0;
+	mif.ip = 0x7801a8c0;
+	mif.mask = 0x00ffffff;
 
 	mif.driver = &mg_tcpip_driver_w5500;
 	mif.driver_data = &spi; // network interface

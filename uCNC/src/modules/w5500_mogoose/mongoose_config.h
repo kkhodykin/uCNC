@@ -15,5 +15,6 @@
 #define MG_ENABLE_CUSTOM_MILLIS 1
 #define mkdir(a, b) (-1)
 #define MG_IO_SIZE 128
+#define MG_ENABLE_ASSERT 1
 
 #endif

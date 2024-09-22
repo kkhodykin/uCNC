@@ -80,7 +80,7 @@ extern "C"
 	void print_fltunits(print_cb cb, float num);
 	void print_intarr(print_cb cb, int32_t *arr, uint8_t count);
 	void print_fltarr(print_cb cb, float *arr, uint8_t count);
-	void print_ip4(print_cb cb, int32_t num)
+	void print_ipv4(print_cb cb, int32_t num);
 
 #define serial_print_str(__s) print_str(serial_putc, __s)
 #define serial_print_bytes(data, count) print_bytes(serial_putc, data, count)
@@ -89,7 +89,7 @@ extern "C"
 #define serial_print_fltunits(num) print_fltunits(serial_putc, num)
 #define serial_print_intarr(arr, count) print_intarr(serial_putc, arr, count)
 #define serial_print_fltarr(arr, count) print_fltarr(serial_putc, arr, count)
-#define serial_print_ip4(ip) print_ip4(serial_putc, ip)
+#define serial_print_ipv4(ip) print_ipv4(serial_putc, ip)
 
 #ifdef ENABLE_DEBUG_STREAM
 #ifndef DEBUG_STREAM
