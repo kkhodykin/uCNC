@@ -82,38 +82,37 @@ void telnet_fn(struct mg_connection *c, int ev, void *ev_data)
 	switch (ev)
 	{
 	case MG_EV_ERROR:
-		serial_print_str("error\n");
+		proto_printf("error\n");
 		break; // Error                        char *error_message
 	case MG_EV_OPEN:
-		serial_print_str("open\n");
+		proto_printf("open\n");
 		break; // Connection created           NULL
 	case MG_EV_POLL:
 		// serial_print_str("pool\n");
 		break; // mg_mgr_poll iteration        uint64_t *uptime_millis
 	case MG_EV_RESOLVE:
-		serial_print_str("resolve\n");
+		proto_printf("resolve\n");
 		break; // Host name is resolved        NULL
 	case MG_EV_CONNECT:
-		serial_print_str("connect\n");
+		proto_printf("connect\n");
 		break; // Connection established       NULL
 	case MG_EV_ACCEPT:
-		serial_print_str("accept\n");
+		proto_printf("accept\n");
 		break; // Connection accepted          NULL
 	case MG_EV_TLS_HS:
-		serial_print_str("tls\n");
+		proto_printf("tls\n");
 		break; // TLS handshake succeeded      NULL
 	case MG_EV_READ:
-		serial_print_str("read\n");
+		proto_printf("read\n");
 		break; // Data received from socket    long *bytes_read
 	case MG_EV_WRITE:
-		serial_print_str("write\n");
+		proto_printf("write\n");
 		break; // Data written to socket       long *bytes_written
 	case MG_EV_CLOSE:
-		serial_print_str("close\n");
+		proto_printf("close\n");
 		break;
 	default:
-		serial_print_int(ev);
-		serial_print_str(" other\n");
+		proto_printf("%d other\n", ev);
 		break;
 	}
 }
@@ -128,10 +127,9 @@ CREATE_EVENT_LISTENER_WITHLOCK(cnc_io_dotasks, w5500_mongoose_update, LISTENER_H
 
 void w5500_diagnostic(void *args)
 {
-	MG_INFO(("ethernet: %s", mg_tcpip_driver_w5500.up(&mif) ? "up" : "down"));
+	MG_INFO(("ethernet: %s\n", mg_tcpip_driver_w5500.up(&mif) ? "up" : "down"));
 	struct mg_tcpip_if *ifp = (struct mg_tcpip_if *) mgr.priv;
-	serial_print_ipv4(ifp->ip);
-	serial_flush();
+	proto_printf("IP: %I", ifp->ip);
 }
 
 DECL_MODULE(w5500_mongoose)
@@ -152,10 +150,10 @@ DECL_MODULE(w5500_mongoose)
 	mif.mac[3] = 0x0a;
 	mif.mac[4] = 0x49;
 	mif.mac[5] = 0xfb;
-	// mif.enable_dhcp_client = true;
-	mif.gw = 0xfe01a8c0;
-	mif.ip = 0x7801a8c0;
-	mif.mask = 0x00ffffff;
+	mif.enable_dhcp_client = true;
+	// mif.gw = 0xfe01a8c0;
+	// mif.ip = 0x7801a8c0;
+	// mif.mask = 0x00ffffff;
 
 	mif.driver = &mg_tcpip_driver_w5500;
 	mif.driver_data = &spi; // network interface
@@ -164,9 +162,9 @@ DECL_MODULE(w5500_mongoose)
 	mg_mgr_init(&mgr);
 	mg_tcpip_init(&mgr, &mif);
 
-	mg_timer_add(&mgr, 5000, MG_TIMER_REPEAT, w5500_diagnostic, NULL);
+	mg_timer_add(&mgr, 5000, MG_TIMER_REPEAT, w5500_diagnostic, &mgr);
 
-	mg_listen(&mgr, "tcp://0.0.0.0:23", &telnet_fn, NULL);
+	mg_http_listen(&mgr, "tcp://0.0.0.0:23", &telnet_fn, &mgr);
 #if defined(ENABLE_MAIN_LOOP_MODULES)
 	ADD_EVENT_LISTENER(cnc_io_dotasks, w5500_mongoose_update);
 #else // !defined(ENABLE_MAIN_LOOP_MODULES)
