@@ -17,7 +17,7 @@
 	See the	GNU General Public License for more details.
 */
 
-#include "src/cnc.h"
+#include "../../../cnc.h"
 
 #if (MCU == MCU_STM32F4X)
 #include "core_cm4.h"
@@ -848,7 +848,7 @@ void mcu_freq_to_clocks(float frequency, uint16_t *ticks, uint16_t *prescaller)
 		totalticks >>= 1;
 	}
 
-	*prescaller--;
+	(*prescaller) -= 1;
 	*ticks = (uint16_t)totalticks;
 }
 
@@ -982,9 +982,7 @@ uint8_t mcu_eeprom_getc(uint16_t address)
 {
 	if (NVM_STORAGE_SIZE <= address)
 	{
-		DEBUG_STR("EEPROM invalid address @ ");
-		DEBUG_INT(address);
-		DEBUG_PUTC('\n');
+		DBGMSG("EEPROM invalid address @ %u",address);
 		return 0;
 	}
 	return stm32_eeprom_buffer[address];
@@ -1012,9 +1010,7 @@ void mcu_eeprom_putc(uint16_t address, uint8_t value)
 {
 	if (NVM_STORAGE_SIZE <= address)
 	{
-		DEBUG_STR("EEPROM invalid address @ ");
-		DEBUG_INT(address);
-		DEBUG_PUTC('\n');
+		DBGMSG("EEPROM invalid address @ %u",address);
 	}
 	// if the value of the eeprom is modified then it will be marked as dirty
 	// flash default value is 0xFF. If programming can change value from 1 to 0 but not the other way around
@@ -1069,9 +1065,9 @@ void mcu_eeprom_flush()
 				; // wait while busy
 			mcu_enable_global_isr();
 			if (FLASH->SR & (FLASH_SR_PGAERR | FLASH_SR_PGPERR | FLASH_SR_PGSERR))
-				protocol_send_error(42); // STATUS_SETTING_WRITE_FAIL
+				proto_error(42); // STATUS_SETTING_WRITE_FAIL
 			if (FLASH->SR & FLASH_SR_WRPERR)
-				protocol_send_error(43); // STATUS_SETTING_PROTECTED_FAIL
+				proto_error(43); // STATUS_SETTING_PROTECTED_FAIL
 			FLASH->CR = 0;						 // Ensure PG bit is low
 			FLASH->SR = 0;
 			eeprom++;
@@ -1148,11 +1144,9 @@ void mcu_spi_config(spi_config_t config, uint32_t frequency)
 uint8_t mcu_spi_xmit(uint8_t c)
 {
 	SPI_REG->DR = c;
-	while (!(SPI_REG->SR & SPI_SR_TXE) && !(SPI_REG->SR & SPI_SR_RXNE))
+	while (!(SPI_REG->SR & SPI_SR_TXE) || (SPI_REG->SR & SPI_SR_BSY))
 		;
 	uint8_t data = SPI_REG->DR;
-	while (SPI_REG->SR & SPI_SR_BSY)
-		;
 	spi_port_state = SPI_IDLE;
 	return data;
 }
@@ -1371,11 +1365,9 @@ void mcu_spi2_config(spi_config_t config, uint32_t frequency)
 uint8_t mcu_spi2_xmit(uint8_t c)
 {
 	SPI2_REG->DR = c;
-	while (!(SPI2_REG->SR & SPI_SR_TXE) && !(SPI2_REG->SR & SPI_SR_RXNE))
+	while (!(SPI2_REG->SR & SPI_SR_TXE) || (SPI2_REG->SR & SPI_SR_BSY))
 		;
 	uint8_t data = SPI2_REG->DR;
-	while (SPI2_REG->SR & SPI_SR_BSY)
-		;
 	spi2_port_state = SPI_IDLE;
 	return data;
 }
