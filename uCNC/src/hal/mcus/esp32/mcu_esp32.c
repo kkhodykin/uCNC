@@ -70,6 +70,8 @@ void mcu_spi2_init(void);
 #endif
 #endif
 
+#define STEP_BASE_FREQ 10000000UL
+
 #if !defined(RAM_ONLY_SETTINGS) && !defined(USE_ARDUINO_EEPROM_LIBRARY)
 #include <nvs.h>
 #include <esp_partition.h>
@@ -226,7 +228,8 @@ static void IRAM_ATTR esp32_i2s_stream_task(void *param)
 			switch (mode & ~ITP_STEP_MODE_SYNC)
 			{
 			case ITP_STEP_MODE_DEFAULT:
-				// timer_pause(ITP_TIMER_TG, ITP_TIMER_IDX);
+				timer_pause(ITP_TIMER_TG, ITP_TIMER_IDX);
+				timer_pause(SERVO_TIMER_TG, SERVO_TIMER_IDX);
 				// timer_disable_intr(ITP_TIMER_TG, ITP_TIMER_IDX);
 				I2SREG.conf.tx_start = 0;
 				I2SREG.conf.tx_reset = 1;
@@ -269,11 +272,15 @@ static void IRAM_ATTR esp32_i2s_stream_task(void *param)
 				I2SREG.out_link.start = 1;
 				I2SREG.conf.tx_start = 1;
 				ets_delay_us(20);
+				timer_start(SERVO_TIMER_TG, SERVO_TIMER_IDX);
 				break;
 			}
 
 			// clear sync flag
 			__atomic_fetch_and((uint32_t *)&i2s_mode, ~ITP_STEP_MODE_SYNC, __ATOMIC_RELAXED);
+#ifdef USE_I2S_REALTIME_MODE_ONLY
+			return;
+#endif
 		}
 
 		while (mode == ITP_STEP_MODE_DEFAULT && available_buffers > 0)
@@ -454,6 +461,11 @@ MCU_CALLBACK void mcu_gen_pwm_and_servo(void *arg)
 	{
 		mcu_soft_io_counter = t;
 	}
+
+	timer_group_clr_intr_status_in_isr(SERVO_TIMER_TG, SERVO_TIMER_IDX);
+	/* After the alarm has been triggered
+		we need enable it again, so it is triggered the next time */
+	timer_group_enable_alarm_in_isr(SERVO_TIMER_TG, SERVO_TIMER_IDX);
 }
 
 static volatile uint32_t mcu_itp_timer_reload;
@@ -468,8 +480,8 @@ MCU_CALLBACK void mcu_gen_step(void)
 	{
 		// stream mode tick
 		int32_t t = mcu_itp_timer_counter;
-		t -= (int32_t)roundf(1000000.0f / (float)ITP_SAMPLE_RATE);
-		if (t <= (int32_t)roundf(500000.0f / (float)ITP_SAMPLE_RATE))
+		t -= (int32_t)roundf((float)STEP_BASE_FREQ / (float)ITP_SAMPLE_RATE);
+		if (t < (int32_t)roundf((float)(STEP_BASE_FREQ >> 1) / (float)ITP_SAMPLE_RATE))
 		{
 			mcu_itp_isr(NULL);
 			mcu_itp_timer_counter = mcu_itp_timer_reload + t;
@@ -638,7 +650,7 @@ void mcu_init(void)
 
 	// inititialize ITP timer
 	timer_config_t itpconfig = {0};
-	itpconfig.divider = 2;
+	itpconfig.divider = (getApbFrequency() / STEP_BASE_FREQ);
 	itpconfig.counter_dir = TIMER_COUNT_UP;
 	itpconfig.counter_en = TIMER_PAUSE;
 	itpconfig.intr_type = TIMER_INTR_MAX;
@@ -909,7 +921,7 @@ void mcu_freq_to_clocks(float frequency, uint16_t *ticks, uint16_t *prescaller)
 {
 	frequency = CLAMP((float)F_STEP_MIN, frequency, (float)F_STEP_MAX);
 	// up and down counter (generates half the step rate at each event)
-	uint32_t totalticks = (uint32_t)(500000.0f / frequency);
+	uint32_t totalticks = (uint32_t)((float)(STEP_BASE_FREQ >> 1) / frequency);
 	*prescaller = 1;
 	while (totalticks > 0xFFFF)
 	{
@@ -923,7 +935,7 @@ void mcu_freq_to_clocks(float frequency, uint16_t *ticks, uint16_t *prescaller)
 float mcu_clocks_to_freq(uint16_t ticks, uint16_t prescaller)
 {
 	float totalticks = (float)ticks * (float)prescaller;
-	return (500000.0f / totalticks);
+	return ((float)(STEP_BASE_FREQ >> 1) / totalticks);
 }
 
 /**
@@ -956,6 +968,10 @@ void mcu_change_itp_isr(uint16_t ticks, uint16_t prescaller)
 			timer_set_counter_value(ITP_TIMER_TG, ITP_TIMER_IDX, 0x00000000ULL);
 			timer_set_alarm_value(ITP_TIMER_TG, ITP_TIMER_IDX, (uint64_t)(ticks * prescaller));
 			timer_start(ITP_TIMER_TG, ITP_TIMER_IDX);
+		}
+		else
+		{
+			mcu_itp_timer_reload = ticks * prescaller;
 		}
 	}
 }
