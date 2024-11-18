@@ -86,8 +86,8 @@ static flash_eeprom_t mcu_eeprom;
 #endif
 
 MCU_CALLBACK void mcu_itp_isr(void *arg);
-static MCU_CALLBACK void mcu_gen_pwm_and_servo(void);
-static MCU_CALLBACK void mcu_gen_step(void);
+MCU_CALLBACK void mcu_gen_pwm_and_servo(void *arg);
+MCU_CALLBACK void mcu_gen_step(void);
 MCU_CALLBACK void mcu_gpio_isr(void *type);
 
 /**
@@ -114,6 +114,18 @@ MCU_CALLBACK void mcu_gpio_isr(void *type);
 
 static volatile uint32_t i2s_mode;
 #define I2S_MODE __atomic_load_n((uint32_t *)&i2s_mode, __ATOMIC_RELAXED)
+
+MCU_CALLBACK void ic74hc595_shift_io_pins(void)
+{
+	uint8_t mode = ITP_STEP_MODE_REALTIME;
+#if !defined(USE_I2S_REALTIME_MODE_ONLY) && defined(IC74HC595_CUSTOM_SHIFT_IO)
+	mode = I2S_MODE;
+#endif
+	if (mode == ITP_STEP_MODE_REALTIME)
+	{
+		__atomic_store_n((uint32_t *)&I2SREG.conf_single_data, __atomic_load_n((uint32_t *)&ic74hc595_i2s_pins, __ATOMIC_RELAXED), __ATOMIC_RELAXED);
+	}
+}
 
 // software generated oneshot for RT steps like laser PPI
 #if defined(MCU_HAS_ONESHOT_TIMER) && defined(ENABLE_RT_SYNC_MOTIONS)
@@ -249,7 +261,7 @@ static void IRAM_ATTR esp32_i2s_stream_task(void *param)
 				I2SREG.conf.rx_msb_shift = 0;
 				I2SREG.int_ena.out_eof = 0;
 				I2SREG.int_ena.out_dscr_err = 0;
-				I2SREG.conf_single_data = __atomic_load_n((uint32_t *)&ic74hc595_i2s_pins, __ATOMIC_RELAXED);
+				ic74hc595_shift_io_pins();
 				I2SREG.conf1.tx_stop_en = 0;
 				I2SREG.int_ena.val = 0;
 				I2SREG.fifo_conf.dscr_en = 1;
@@ -274,7 +286,7 @@ static void IRAM_ATTR esp32_i2s_stream_task(void *param)
 				mcu_gen_step();
 #endif
 #if defined(IC74HC595_HAS_PWMS) || defined(IC74HC595_HAS_SERVOS)
-				mcu_gen_pwm_and_servo();
+				mcu_gen_pwm_and_servo(NULL);
 #endif
 #if defined(MCU_HAS_ONESHOT_TIMER) && defined(ENABLE_RT_SYNC_MOTIONS)
 				mcu_gen_oneshot();
@@ -297,10 +309,11 @@ static FORCEINLINE void esp32_i2s_extender_init(void)
 {
 #ifdef USE_I2S_REALTIME_MODE_ONLY
 	itp_set_step_mode(ITP_STEP_MODE_REALTIME);
+	esp32_i2s_stream_task(NULL);
 #else
 	itp_set_step_mode(ITP_STEP_MODE_DEFAULT);
-#endif
 	xTaskCreatePinnedToCore(esp32_i2s_stream_task, "esp32I2Supdate", 4096, NULL, 7, NULL, CONFIG_ARDUINO_RUNNING_CORE);
+#endif
 }
 #endif
 
@@ -403,7 +416,7 @@ static FORCEINLINE void servo_update(void)
 }
 #endif
 
-static MCU_CALLBACK void mcu_gen_pwm_and_servo(void)
+MCU_CALLBACK void mcu_gen_pwm_and_servo(void *arg)
 {
 	static int16_t mcu_soft_io_counter;
 	int16_t t = mcu_soft_io_counter;
@@ -445,9 +458,9 @@ static MCU_CALLBACK void mcu_gen_pwm_and_servo(void)
 
 static volatile uint32_t mcu_itp_timer_reload;
 static volatile bool mcu_itp_timer_running;
-static MCU_CALLBACK void mcu_gen_step(void)
+MCU_CALLBACK void mcu_gen_step(void)
 {
-	static bool step_reset = true;
+
 	static int32_t mcu_itp_timer_counter;
 
 	// generate steps
@@ -455,19 +468,10 @@ static MCU_CALLBACK void mcu_gen_step(void)
 	{
 		// stream mode tick
 		int32_t t = mcu_itp_timer_counter;
-		bool reset = step_reset;
 		t -= (int32_t)roundf(1000000.0f / (float)ITP_SAMPLE_RATE);
-		if (t <= 0)
+		if (t <= (int32_t)roundf(500000.0f / (float)ITP_SAMPLE_RATE))
 		{
-			if (!reset)
-			{
-				mcu_step_cb();
-			}
-			else
-			{
-				mcu_step_reset_cb();
-			}
-			step_reset = !reset;
+			mcu_itp_isr(NULL);
 			mcu_itp_timer_counter = mcu_itp_timer_reload + t;
 		}
 		else
@@ -536,36 +540,17 @@ void mcu_rtc_task(void *arg)
 
 MCU_CALLBACK void mcu_itp_isr(void *arg)
 {
-#ifdef IC74HC595_CUSTOM_SHIFT_IO
-	uint32_t mode = I2S_MODE;
-#if defined(IC74HC595_HAS_STEPS) || defined(IC74HC595_HAS_DIRS)
-	if (mode == ITP_STEP_MODE_REALTIME)
-#endif
-#endif
+	static bool step_reset = true;
+	bool reset = step_reset;
+	if (!reset)
 	{
-		mcu_gen_step();
+		mcu_step_cb();
 	}
-#ifdef IC74HC595_CUSTOM_SHIFT_IO
-#if defined(IC74HC595_HAS_PWMS) || defined(IC74HC595_HAS_SERVOS)
-	if (mode == ITP_STEP_MODE_REALTIME)
-#endif
-#endif
+	else
 	{
-		mcu_gen_pwm_and_servo();
+		mcu_step_reset_cb();
 	}
-#if defined(MCU_HAS_ONESHOT_TIMER) && defined(ENABLE_RT_SYNC_MOTIONS)
-	mcu_gen_oneshot();
-#endif
-#ifdef IC74HC595_CUSTOM_SHIFT_IO
-#if defined(IC74HC595_HAS_STEPS) || defined(IC74HC595_HAS_DIRS) || defined(IC74HC595_HAS_PWMS) || defined(IC74HC595_HAS_SERVOS)
-	// this is where the IO update happens in RT mode
-	// this prevents multiple
-	if (mode == ITP_STEP_MODE_REALTIME)
-	{
-		I2SREG.conf_single_data = __atomic_load_n((uint32_t *)&ic74hc595_i2s_pins, __ATOMIC_RELAXED);
-	}
-#endif
-#endif
+	step_reset = !reset;
 
 	timer_group_clr_intr_status_in_isr(ITP_TIMER_TG, ITP_TIMER_IDX);
 	/* After the alarm has been triggered
@@ -668,7 +653,28 @@ void mcu_init(void)
 	// register PWM isr
 	timer_isr_register(ITP_TIMER_TG, ITP_TIMER_IDX, mcu_itp_isr, NULL, 0, NULL);
 	timer_enable_intr(ITP_TIMER_TG, ITP_TIMER_IDX);
-	timer_start(ITP_TIMER_TG, ITP_TIMER_IDX);
+// timer_start(ITP_TIMER_TG, ITP_TIMER_IDX);
+
+// inititialize SERVO and soft PWM timer
+#if (SERVO_MASK > 0) || defined(IC74HC595_HAS_PWMS) || defined(IC74HC595_HAS_SERVOS) || defined(MCU_HAS_SOFT_PWM_TIMER)
+	timer_config_t servoconfig = {0};
+	servoconfig.divider = 2;
+	servoconfig.counter_dir = TIMER_COUNT_UP;
+	servoconfig.counter_en = TIMER_PAUSE;
+	servoconfig.intr_type = TIMER_INTR_MAX;
+	servoconfig.alarm_en = TIMER_ALARM_EN;
+	servoconfig.auto_reload = true;
+	timer_init(SERVO_TIMER_TG, SERVO_TIMER_IDX, &servoconfig);
+	/* Timer's counter will initially start from value below.
+		 Also, if auto_reload is set, this value will be automatically reload on alarm */
+	timer_set_counter_value(SERVO_TIMER_TG, SERVO_TIMER_IDX, 0x00000000ULL);
+	/* Configure the alarm value and the interrupt on alarm. */
+	timer_set_alarm_value(SERVO_TIMER_TG, SERVO_TIMER_IDX, (uint64_t)(getApbFrequency() / (ITP_SAMPLE_RATE * 2)));
+	// register PWM isr
+	timer_isr_register(SERVO_TIMER_TG, SERVO_TIMER_IDX, mcu_gen_pwm_and_servo, NULL, 0, NULL);
+	timer_enable_intr(SERVO_TIMER_TG, SERVO_TIMER_IDX);
+	timer_start(SERVO_TIMER_TG, SERVO_TIMER_IDX);
+#endif
 
 #ifdef IC74HC595_CUSTOM_SHIFT_IO
 	esp32_i2s_extender_init();
@@ -897,12 +903,13 @@ bool mcu_get_global_isr(void)
 // Step interpolator
 /**
  * convert step rate to clock cycles
+ *
  * */
 void mcu_freq_to_clocks(float frequency, uint16_t *ticks, uint16_t *prescaller)
 {
 	frequency = CLAMP((float)F_STEP_MIN, frequency, (float)F_STEP_MAX);
 	// up and down counter (generates half the step rate at each event)
-	uint32_t totalticks = (uint32_t)((500000.0f) / frequency);
+	uint32_t totalticks = (uint32_t)(500000.0f / frequency);
 	*prescaller = 1;
 	while (totalticks > 0xFFFF)
 	{
@@ -915,8 +922,8 @@ void mcu_freq_to_clocks(float frequency, uint16_t *ticks, uint16_t *prescaller)
 
 float mcu_clocks_to_freq(uint16_t ticks, uint16_t prescaller)
 {
-	uint32_t totalticks = (uint32_t)ticks * prescaller;
-	return 500000.0f / ((float)totalticks);
+	float totalticks = (float)ticks * (float)prescaller;
+	return (500000.0f / totalticks);
 }
 
 /**
@@ -927,11 +934,7 @@ void mcu_start_itp_isr(uint16_t ticks, uint16_t prescaller)
 {
 	if (!mcu_itp_timer_running)
 	{
-		mcu_itp_timer_reload = ticks * prescaller;
 		mcu_itp_timer_running = true;
-	}
-	else
-	{
 		mcu_change_itp_isr(ticks, prescaller);
 	}
 }
@@ -943,11 +946,17 @@ void mcu_change_itp_isr(uint16_t ticks, uint16_t prescaller)
 {
 	if (mcu_itp_timer_running)
 	{
-		mcu_itp_timer_reload = ticks * prescaller;
-	}
-	else
-	{
-		mcu_start_itp_isr(ticks, prescaller);
+		uint8_t mode = ITP_STEP_MODE_REALTIME;
+#if !defined(USE_I2S_REALTIME_MODE_ONLY) && defined(IC74HC595_CUSTOM_SHIFT_IO)
+		mode = I2S_MODE;
+#endif
+		if (mode == ITP_STEP_MODE_REALTIME)
+		{
+			timer_pause(ITP_TIMER_TG, ITP_TIMER_IDX);
+			timer_set_counter_value(ITP_TIMER_TG, ITP_TIMER_IDX, 0x00000000ULL);
+			timer_set_alarm_value(ITP_TIMER_TG, ITP_TIMER_IDX, (uint64_t)(ticks * prescaller));
+			timer_start(ITP_TIMER_TG, ITP_TIMER_IDX);
+		}
 	}
 }
 
@@ -959,6 +968,15 @@ void mcu_stop_itp_isr(void)
 	if (mcu_itp_timer_running)
 	{
 		mcu_itp_timer_running = false;
+		uint8_t mode = ITP_STEP_MODE_REALTIME;
+#if !defined(USE_I2S_REALTIME_MODE_ONLY) && defined(IC74HC595_CUSTOM_SHIFT_IO)
+		mode = I2S_MODE;
+#endif
+		if (mode == ITP_STEP_MODE_REALTIME)
+		{
+			timer_pause(ITP_TIMER_TG, ITP_TIMER_IDX);
+			timer_set_counter_value(ITP_TIMER_TG, ITP_TIMER_IDX, 0x00000000ULL);
+		}
 	}
 }
 
@@ -1059,7 +1077,7 @@ uint8_t mcu_eeprom_getc(uint16_t address)
 {
 	if (NVM_STORAGE_SIZE <= address)
 	{
-		DBGMSG("EEPROM invalid address @ %u",address);
+		DBGMSG("EEPROM invalid address @ %u", address);
 		return 0;
 	}
 #ifndef RAM_ONLY_SETTINGS
@@ -1080,7 +1098,7 @@ void mcu_eeprom_putc(uint16_t address, uint8_t value)
 {
 	if (NVM_STORAGE_SIZE <= address)
 	{
-		DBGMSG("EEPROM invalid address @ %u",address);
+		DBGMSG("EEPROM invalid address @ %u", address);
 	}
 #ifndef RAM_ONLY_SETTINGS
 	// esp32_eeprom_write(address, value);
