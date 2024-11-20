@@ -293,7 +293,7 @@ static void IRAM_ATTR esp32_i2s_stream_task(void *param)
 				mcu_gen_step();
 #endif
 #if defined(IC74HC595_HAS_PWMS) || defined(IC74HC595_HAS_SERVOS)
-				mcu_gen_pwm_and_servo(NULL);
+				mcu_pwm_servo_isr(NULL);
 #endif
 #if defined(MCU_HAS_ONESHOT_TIMER) && defined(ENABLE_RT_SYNC_MOTIONS)
 				mcu_gen_oneshot();
@@ -423,20 +423,20 @@ static FORCEINLINE void servo_update(void)
 }
 #endif
 
-MCU_CALLBACK void mcu_gen_pwm_and_servo(void *arg)
+MCU_CALLBACK void mcu_pwm_servo_isr(void *arg)
 {
+// updated software PWM pins
+#if defined(IC74HC595_HAS_PWMS) || defined(MCU_HAS_SOFT_PWM_TIMER)
+	io_soft_pwm_update();
+#endif
+
+	// update servo pins
+#if SERVOS_MASK > 0
 	static int16_t mcu_soft_io_counter;
 	int16_t t = mcu_soft_io_counter;
 	t--;
 	if (t <= 0)
 	{
-// updated software PWM pins
-#if defined(IC74HC595_HAS_PWMS) || defined(MCU_HAS_SOFT_PWM_TIMER)
-		io_soft_pwm_update();
-#endif
-
-		// update servo pins
-#if SERVOS_MASK > 0
 		// also run servo pin signals
 		uint32_t counter = servo_tick_counter;
 
@@ -454,13 +454,13 @@ MCU_CALLBACK void mcu_gen_pwm_and_servo(void *arg)
 
 		// resets every 3ms
 		servo_tick_counter = ++counter;
-#endif
 		mcu_soft_io_counter = (int16_t)roundf((float)ITP_SAMPLE_RATE / 128000.0f);
 	}
 	else
 	{
 		mcu_soft_io_counter = t;
 	}
+#endif
 
 	timer_group_clr_intr_status_in_isr(SERVO_TIMER_TG, SERVO_TIMER_IDX);
 	/* After the alarm has been triggered
@@ -668,7 +668,7 @@ void mcu_init(void)
 // timer_start(ITP_TIMER_TG, ITP_TIMER_IDX);
 
 // inititialize SERVO and soft PWM timer
-#if (SERVO_MASK > 0) || defined(IC74HC595_HAS_PWMS) || defined(IC74HC595_HAS_SERVOS) || defined(MCU_HAS_SOFT_PWM_TIMER)
+#if (SERVOS_MASK > 0) || defined(IC74HC595_HAS_PWMS) || defined(IC74HC595_HAS_SERVOS) || defined(MCU_HAS_SOFT_PWM_TIMER)
 	timer_config_t servoconfig = {0};
 	servoconfig.divider = 2;
 	servoconfig.counter_dir = TIMER_COUNT_UP;
@@ -683,7 +683,7 @@ void mcu_init(void)
 	/* Configure the alarm value and the interrupt on alarm. */
 	timer_set_alarm_value(SERVO_TIMER_TG, SERVO_TIMER_IDX, (uint64_t)(getApbFrequency() / (ITP_SAMPLE_RATE * 2)));
 	// register PWM isr
-	timer_isr_register(SERVO_TIMER_TG, SERVO_TIMER_IDX, mcu_gen_pwm_and_servo, NULL, 0, NULL);
+	timer_isr_register(SERVO_TIMER_TG, SERVO_TIMER_IDX, mcu_pwm_servo_isr, NULL, 0, NULL);
 	timer_enable_intr(SERVO_TIMER_TG, SERVO_TIMER_IDX);
 	timer_start(SERVO_TIMER_TG, SERVO_TIMER_IDX);
 #endif

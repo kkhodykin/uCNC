@@ -48,7 +48,7 @@ extern "C"
 #endif
 // defines the maximum and minimum step rates
 #ifndef F_STEP_MAX
-#define F_STEP_MAX 125000UL
+#define F_STEP_MAX 127500UL
 #endif
 #ifndef F_STEP_MIN
 #define F_STEP_MIN 1
