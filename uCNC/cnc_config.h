@@ -125,7 +125,7 @@ extern "C"
 	 * This is useful if you don't have EEPROM/FLASH storage or the divide read/write maximum cycle count is low to prevent damage
 	 * This is also usefull if the sender provides all settings at startup/connection
 	 * */
-	//	 #define RAM_ONLY_SETTINGS
+		//  #define RAM_ONLY_SETTINGS
 
 	/**
 	 * Override default configuration settings. Use _PER_AXIS parameters to
@@ -152,12 +152,12 @@ extern "C"
 	// #define DEFAULT_ARC_TOLERANCE 0.002
 	// #define DEFAULT_DEBOUNCE_MS 250
 
-#if defined(KINEMATIC_DELTA)
+#if defined(KINEMATIC_LINEAR_DELTA)
 	// #define DEFAULT_LIN_DELTA_ARM_LENGTH 230
 	// #define DEFAULT_LIN_DELTA_BASE_RADIUS 115
 #endif
 
-#if defined(KINEMATIC_LINEAR_DELTA)
+#if defined(KINEMATIC_DELTA)
 	// #define DEFAULT_DELTA_BICEP_LENGTH 100
 	// #define DEFAULT_DELTA_FOREARM_LENGTH 300
 	// #define DEFAULT_DELTA_EFFECTOR_RADIUS 24
@@ -320,6 +320,11 @@ extern "C"
  */
 #define ENABLE_O_CODES_VERBOSE
 #endif
+
+/**
+ * Uncomment to prevent machine lock after end program (M2 or M30)
+ */
+// #define DISABLE_ENDPROGRAM_LOCK
 
 	/**
 	 * Shrink µCNC
