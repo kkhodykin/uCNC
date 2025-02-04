@@ -1029,15 +1029,19 @@ extern "C"
 			DBGMSG("EEPROM invalid address @ %u", address);
 			return;
 		}
+		timer1_disable();
 		EEPROM.write(address, value);
+		timer1_enable(TIM_DIV1, TIM_EDGE, TIM_LOOP);
 	}
 
 	void mcu_eeprom_flush(void)
 	{
+		timer1_disable();
 		if (!EEPROM.commit())
 		{
 			Serial.println("[MSG: EEPROM write error]");
 		}
+		timer1_enable(TIM_DIV1, TIM_EDGE, TIM_LOOP);
 	}
 }
 
