@@ -30,6 +30,7 @@
 #include "gpio.h"
 #include "eagle_soc.h"
 #include "osapi.h"
+#include "user_interface.h"
 #ifdef MCU_HAS_I2C
 #include "twi.h"
 #endif
@@ -247,11 +248,18 @@ IRAM_ATTR void mcu_rtc_isr(void *arg)
 	mcu_rtc_cb(mcu_runtime_ms);
 }
 
-IRAM_ATTR void mcu_itp_isr(void)
+IRAM_ATTR void mcu_update_outputs(void)
 {
 	mcu_gen_step();
 	mcu_gen_pwm_and_servo();
+#if defined(MCU_HAS_ONESHOT_TIMER) && defined(ENABLE_RT_SYNC_MOTIONS)
 	mcu_gen_oneshot();
+#endif
+}
+
+IRAM_ATTR void mcu_itp_isr(void)
+{
+	mcu_update_outputs();
 #if defined(IC74HC595_HAS_STEPS) || defined(IC74HC595_HAS_DIRS) || defined(IC74HC595_HAS_PWMS) || defined(IC74HC595_HAS_SERVOS)
 	ic74hc595_shift_io_pins();
 #endif
@@ -273,11 +281,18 @@ extern void mcu_eeprom_init(void);
 #endif
 extern void mcu_spi_init();
 
+#ifdef IC74HC595_CUSTOM_SHIFT_IO
+extern void ic74hc595_shift_init(void);
+#endif
+
 void mcu_init(void)
 {
-	esp8266_global_isr = 15;
+	// this resets the global ISR value
+	mcu_disable_global_isr();
+	mcu_enable_global_isr();
 	mcu_io_init();
 	mcu_uart_init();
+	mcu_spi_init();
 
 #ifndef RAM_ONLY_SETTINGS
 	mcu_eeprom_init(); // Emulated EEPROM
@@ -285,6 +300,10 @@ void mcu_init(void)
 
 #ifdef MCU_HAS_WIFI
 	esp8266_wifi_init();
+#endif
+
+#ifdef IC74HC595_CUSTOM_SHIFT_IO
+	ic74hc595_shift_init();
 #endif
 
 	// init rtc
@@ -297,10 +316,6 @@ void mcu_init(void)
 	timer1_enable(TIM_DIV1, TIM_EDGE, TIM_LOOP);
 	timer1_write((APB_CLK_FREQ / ITP_SAMPLE_RATE));
 
-#ifdef MCU_HAS_SPI
-	mcu_spi_init();
-#endif
-
 #ifdef MCU_HAS_I2C
 	i2c_master_gpio_init();
 	i2c_master_init();
@@ -312,6 +327,10 @@ void mcu_init(void)
  * for the moment these are:
  *   - if USB is enabled and MCU uses tinyUSB framework run tinyUSB tud_task
  * */
+#ifdef IC74HC595_CUSTOM_SHIFT_IO
+extern void esp8266_shifter_dotasks();
+#endif
+
 void mcu_dotasks(void)
 {
 	// reset WDT
@@ -319,6 +338,9 @@ void mcu_dotasks(void)
 	mcu_uart_dotasks();
 #ifdef MCU_HAS_WIFI
 	esp8266_wifi_dotasks();
+#endif
+#ifdef IC74HC595_CUSTOM_SHIFT_IO
+	// esp8266_shifter_dotasks();
 #endif
 }
 

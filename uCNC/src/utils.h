@@ -243,7 +243,7 @@ extern "C"
 #ifndef USE_CUSTOM_BUFFER_IMPLEMENTATION
 #define DECL_BUFFER(type, name, size)  \
 	static type name##_bufferdata[size]; \
-	ring_buffer_t name = {0, 0, 0, name##_bufferdata, size, sizeof(type)}
+	ring_buffer_t name = {0, 0, 0, (uint8_t *)name##_bufferdata, size, sizeof(type)}
 
 	uint8_t buffer_write_available(ring_buffer_t *buffer);
 	uint8_t buffer_read_available(ring_buffer_t *buffer);
